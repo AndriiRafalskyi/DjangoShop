@@ -1,20 +1,25 @@
 from django.shortcuts import render, redirect, get_object_or_404
-from store.models import Product
+from store.models import Product, Variation
 from .models import Cart, CartItem
 from django.core.exceptions import ObjectDoesNotExist
 from django.http import Http404
+from constants.variation_category_choices import COLOR_VARIATION, SIZE_VARIATION
 
 def add_product_to_cart(request, product_id):
     product = Product.objects.get(id=product_id)
+
+    color_variation = Variation.objects.get(product=product, variation_category=COLOR_VARIATION, variation_value=request.POST.get(COLOR_VARIATION))
+    size_variation = Variation.objects.get(product=product, variation_category=SIZE_VARIATION, variation_value=request.POST.get(SIZE_VARIATION))
+
     try:
         cart = Cart.objects.get(cart_id=request.session.session_key)
     except Cart.DoesNotExist:
         request.session.create()
         cart = Cart.objects.create(cart_id=request.session.session_key)
         cart.save()
-
     try:
         cart_item = CartItem.objects.get(product=product, cart=cart)
+        
         cart_item.quantity += 1
     except CartItem.DoesNotExist:
         cart_item = CartItem.objects.create(product=product, quantity=1, cart=cart)
