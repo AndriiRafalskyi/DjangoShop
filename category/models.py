@@ -13,7 +13,6 @@ class Category(models.Model):
         verbose_name_plural = 'categories'
 
     def get_url(self):
-        print('hello')
         return reverse('products_by_category', args=[self.category_slug])
 
     def __str__(self):
