@@ -16,6 +16,12 @@ class CartItem(models.Model):
     quantity = models.PositiveIntegerField()
     is_active = models.BooleanField(default=True)
 
+    def get_item_with_same_variations(items, variations):
+        for item in items:
+            if list(item.variations.all()) == variations:
+                return item
+        return None
+
     def sub_total(self):
         return self.product.price * self.quantity
 

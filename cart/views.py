@@ -4,34 +4,53 @@ from .models import Cart, CartItem
 from django.core.exceptions import ObjectDoesNotExist
 from django.http import Http404
 from constants.variation_category_choices import COLOR_VARIATION, SIZE_VARIATION
+import logging
+logger = logging.getLogger('django')
 
 def add_product_to_cart(request, product_id):
     product = Product.objects.get(id=product_id)
 
-    color_variation = Variation.objects.get(product=product, variation_category=COLOR_VARIATION, variation_value=request.POST.get(COLOR_VARIATION))
-    size_variation = Variation.objects.get(product=product, variation_category=SIZE_VARIATION, variation_value=request.POST.get(SIZE_VARIATION))
+    variations = []
 
+    if request.POST:
+        if COLOR_VARIATION in request.POST:
+            variations.append(Variation.objects.get(product=product, variation_category=COLOR_VARIATION, variation_value=request.POST.get(COLOR_VARIATION)))
+        if SIZE_VARIATION in request.POST:
+            variations.append(Variation.objects.get(product=product, variation_category=SIZE_VARIATION, variation_value=request.POST.get(SIZE_VARIATION)))
     try:
         cart = Cart.objects.get(cart_id=request.session.session_key)
     except Cart.DoesNotExist:
         request.session.create()
         cart = Cart.objects.create(cart_id=request.session.session_key)
         cart.save()
-    try:
-        cart_item = CartItem.objects.get(product=product, cart=cart)
-        
-        cart_item.quantity += 1
-    except CartItem.DoesNotExist:
-        cart_item = CartItem.objects.create(product=product, quantity=1, cart=cart)
-    finally:
-        cart_item.save()
 
+    
+    logger.info(variations)
+
+    cart_item = CartItem.get_item_with_same_variations(CartItem.objects.filter(product=product, cart=cart), variations)
+    if cart_item:
+        cart_item.quantity += 1
+    else:
+        cart_item = CartItem.objects.create(product=product, quantity=1, cart=cart)
+        cart_item.variations.set(variations)
+
+    cart_item.save()
+        
     return redirect('cart')
 
 def remove_product_from_cart(request, product_id, remove_completely=False):
     cart = Cart.objects.get(cart_id=request.session.session_key)
     product = get_object_or_404(Product, id=product_id)
-    cart_item = CartItem.objects.get(product=product, cart=cart)
+    
+    variations = []
+
+    if request.POST:
+        if COLOR_VARIATION in request.POST:
+            variations.append(Variation.objects.get(product=product, variation_category=COLOR_VARIATION, variation_value=request.POST.get(COLOR_VARIATION)))
+        if SIZE_VARIATION in request.POST:
+            variations.append(Variation.objects.get(product=product, variation_category=SIZE_VARIATION, variation_value=request.POST.get(SIZE_VARIATION)))
+    
+    cart_item = CartItem.get_item_with_same_variations(CartItem.objects.filter(product=product, cart=cart), variations)
     if cart_item.quantity > 1 and not remove_completely:
         cart_item.quantity -= 1
         cart_item.save()
